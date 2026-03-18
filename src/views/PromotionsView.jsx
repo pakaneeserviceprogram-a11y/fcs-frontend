@@ -10,6 +10,7 @@ import Card from '../components/Card';
 import Table from '../components/Table';
 import PageHeader from '../components/PageHeader';
 import api from '../utils/api';
+
 export default function PromotionsView() {
   const { t } = useTranslation();
 
@@ -20,10 +21,11 @@ export default function PromotionsView() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add');
   
-  // 💡 1. เพิ่ม startTime และ endTime เข้ามาในค่าเริ่มต้น
+  // 💡 1. แก้ไข rewardValue ให้เริ่มต้นเป็นค่าว่าง '' (ไม่ใช่ 0) เพื่อไม่ให้มีเลข 0 ค้างในช่อง
   const initialForm = { 
     id: '', name: '', type: 'TOPUP_BONUS', condition: '', 
-    rewardType: 'CASH_BONUS', rewardValue: 0, 
+    rewardType: 'CASH_BONUS', rewardValue: '', 
+    minAmount: '', // 💡 เพิ่ม minAmount ไว้เก็บยอดขั้นต่ำ
     startDate: '', endDate: '', startTime: '', endTime: '', 
     isActive: true 
   };
@@ -55,9 +57,10 @@ export default function PromotionsView() {
     setModalMode('edit');
     setFormData({
       id: p.id, name: p.name, type: p.type, condition: p.condition, 
-      rewardType: p.rewardType, rewardValue: p.rewardValue, 
+      rewardType: p.rewardType, 
+      rewardValue: p.rewardValue || '', // 💡 ดึงค่ามาถ้ามี ถ้าไม่มีให้เป็นค่าว่าง
+      minAmount: p.minAmount || '', // 💡 ดึงมาแสดงตอนแก้ไข
       startDate: p.startDate || '', endDate: p.endDate || '', 
-      // 💡 2. ดึงค่าเวลามาแสดงผลตอนแก้ไข
       startTime: p.startTime || '', endTime: p.endTime || '', 
       isActive: p.status === 'ACTIVE'
     });
@@ -108,7 +111,6 @@ export default function PromotionsView() {
            <div className="flex items-center gap-1 ml-4 mt-0.5">
              ถึง {p.endDate ? <span className={isExpired(p.endDate) ? 'text-rose-500 font-bold' : 'text-slate-700 font-bold'}>{p.endDate}</span> : <span className="text-slate-400">ไม่มีกำหนด</span>}
            </div>
-           {/* 💡 3. แถมให้: โชว์เวลา Happy Hour ในตารางให้เห็นชัดๆ */}
            {p.type === 'TIME_DISCOUNT' && p.startTime && p.endTime && (
              <div className="flex items-center gap-1 ml-4 mt-1 text-indigo-600 font-bold">
                <Clock size={12} /> {p.startTime} - {p.endTime} น.
@@ -171,16 +173,39 @@ export default function PromotionsView() {
                 <Input label="เงื่อนไข (คำอธิบายสั้นๆ)" value={formData.condition} onChange={(e) => setFormData({...formData, condition: e.target.value})} placeholder="เช่น สั่งครบ 200 บ." />
               </div>
 
-              {/* แสดงช่องเลือกเวลา เฉพาะตอนที่เลือกเป็น Happy Hour เท่านั้น */}
               {formData.type === 'TIME_DISCOUNT' && (
                 <div className="grid grid-cols-2 gap-4 p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 animate-in slide-in-from-top-2">
                    <Input label="เวลาเริ่ม (Start Time)" type="time" value={formData.startTime} onChange={(e) => setFormData({...formData, startTime: e.target.value})} required />
                    <Input label="เวลาสิ้นสุด (End Time)" type="time" value={formData.endTime} onChange={(e) => setFormData({...formData, endTime: e.target.value})} required />
                 </div>
               )}
-              
-              <div className="grid grid-cols-2 gap-4 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                <div className="space-y-1">
+              {/* กล่องตั้งค่าเงื่อนไขขั้นต่ำ */}
+  <div className="grid grid-cols-2 gap-4 p-4 bg-amber-50/50 rounded-xl border border-amber-100">
+    <div className="flex-1">
+      <Input 
+        label="ยอดขั้นต่ำที่ต้องถึง (฿)" 
+        type="number" 
+        required 
+        min="0" 
+        step="1" 
+        placeholder="เช่น ต้องเติมเกิน 100 บาท"
+        value={formData.minAmount} 
+        onChange={(e) => {
+          const val = e.target.value;
+          setFormData({ ...formData, minAmount: val === '' ? '' : Number(val) });
+        }}
+        onKeyDown={(e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault(); }} 
+      />
+    </div>
+    <div className="flex flex-col justify-center">
+      <span className="text-xs text-amber-700 font-bold mt-4">
+        * ตัวเลขนี้ ระบบจะนำไปใช้คำนวณอัตโนมัติ 
+        (เช่น ถ้ายอดบิล {'>='} {formData.minAmount || 0} บาท จะแจกโปรโมชั่นนี้ทันที)
+      </span>
+    </div>
+  </div>
+              <div className="flex gap-4 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                <div className="flex-1 space-y-1">
                   <label className="text-xs font-bold text-emerald-700 uppercase">ประเภทรางวัลที่จะได้รับ</label>
                   <select className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/20" value={formData.rewardType} onChange={(e) => setFormData({...formData, rewardType: e.target.value})}>
                     {formData.type === 'TOPUP_BONUS' ? (
@@ -196,7 +221,32 @@ export default function PromotionsView() {
                     )}
                   </select>
                 </div>
-                <Input label="มูลค่ารางวัล" type="number" required min="0" step="1" value={formData.rewardValue} onChange={(e) => setFormData({...formData, rewardValue: Number(e.target.value)})} />
+                
+                {/* 💡 2. แก้ไข onChange ให้แปลงตัวเลขที่ถูกต้อง และอนุญาตให้เป็นค่าว่างได้ */}
+                <div className="flex-1">
+                  <Input 
+                    label="มูลค่ารางวัล" 
+                    type="number" 
+                    required 
+                    min="0" 
+                    step="1" 
+                    value={formData.rewardValue} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData({
+                        ...formData, 
+                        rewardValue: val === '' ? '' : Number(val)
+                      });
+                    }} 
+                    // 💡 เพิ่มบรรทัด onKeyDown ลงไปตรงนี้ครับ
+    onKeyDown={(e) => {
+      // ดักไม่ให้พิมพ์ตัว e, E, +, - ในช่องตัวเลข
+      if (['e', 'E', '+', '-'].includes(e.key)) {
+        e.preventDefault();
+      }
+    }}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 pt-2">
