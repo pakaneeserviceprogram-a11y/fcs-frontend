@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, X, MonitorSmartphone, AlertCircle, CheckCircle, Info, Store, CreditCard, LayoutDashboard } from 'lucide-react';
-import axios from 'axios';
+//import api from 'api';
 import { useTranslation } from 'react-i18next';
 
 import Button from '../components/Button';
@@ -67,7 +67,7 @@ export default function TerminalsView() {
     try {
       const isEdit = modalMode === 'edit';
       const url = isEdit ? `/api/v3/terminals/${formData.id}` : `/api/v3/terminals`;
-      await axios({ method: isEdit ? 'patch' : 'post', url, data: formData, headers: { 'x-tenant-id': '2' } });
+      await api({ method: isEdit ? 'patch' : 'post', url, data: formData, headers: { 'x-tenant-id': '2' } });
       
       showBanner('success', isEdit ? 'อัปเดตเครื่องสำเร็จ' : 'ลงทะเบียนเครื่องใหม่สำเร็จ');
       setIsModalOpen(false);

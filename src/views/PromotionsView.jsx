@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, X, Tags, AlertCircle, CheckCircle, Megaphone, Calendar, Clock } from 'lucide-react';
-import axios from 'axios';
+//import api from 'api';
 import { useTranslation } from 'react-i18next';
 
 import Button from '../components/Button';
@@ -69,7 +69,7 @@ export default function PromotionsView() {
     try {
       const isEdit = modalMode === 'edit';
       const url = isEdit ? `/api/v3/promotions/${formData.id}` : `/api/v3/promotions`;
-      await axios({ method: isEdit ? 'patch' : 'post', url, data: formData, headers: { 'x-tenant-id': '2' } });
+      await api({ method: isEdit ? 'patch' : 'post', url, data: formData, headers: { 'x-tenant-id': '2' } });
       
       showBanner('success', isEdit ? 'อัปเดตแคมเปญสำเร็จ' : 'สร้างแคมเปญสำเร็จ');
       setIsModalOpen(false);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, Edit2, X, Store, ShoppingBag, Search, AlertCircle, CheckCircle, Info, Image as ImageIcon, UploadCloud } from 'lucide-react';
-import axios from 'axios';
+//import api from 'api';
 import { useTranslation } from 'react-i18next';
 
 import Button from '../components/Button';
@@ -185,7 +185,7 @@ export default function VendorsView() {
           formData.append('image', productForm.imageFile);
         }
         
-        await axios({ 
+        await api({ 
           method: isEdit ? 'patch' : 'post', 
           url, 
           data: formData, 

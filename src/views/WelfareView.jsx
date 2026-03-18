@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Gift, Wallet, Calendar, Users, Clock, RefreshCw, X, AlertCircle, CheckCircle, Info, Edit2 } from 'lucide-react';
-import axios from 'axios';
+//import api from 'api';
 import { useTranslation } from 'react-i18next';
 
 import Button from '../components/Button';
@@ -116,7 +116,7 @@ export default function WelfareView() {
 
   const executeRule = async (ruleId) => {
     try {
-      const res = await axios.post(`/api/v3/welfare/${ruleId}/execute`, {}, { headers: getHeaders() });
+      const res = await api.post(`/api/v3/welfare/${ruleId}/execute`, {}, { headers: getHeaders() });
       showBanner('success', res.data?.message || 'สั่งจ่ายสำเร็จ!');
       fetchRules();
     } catch (error) { showError(error, "สั่งจ่ายไม่สำเร็จ"); }
