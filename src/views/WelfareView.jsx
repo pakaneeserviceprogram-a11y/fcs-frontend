@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import PageHeader from '../components/PageHeader';
-
+import api from '../utils/api';
 export default function WelfareView() {
   const { t } = useTranslation();
 
@@ -51,7 +51,7 @@ export default function WelfareView() {
   // ==========================================
   const fetchCardGroups = async () => {
     try {
-      const res = await axios.get('http://localhost:3000/api/v3/members/groups', { headers: getHeaders() });
+      const res = await axios.get('/api/v3/members/groups', { headers: getHeaders() });
       setCardGroups(res.data);
     } catch (error) {}
   };
@@ -59,7 +59,7 @@ export default function WelfareView() {
   const fetchRules = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get('http://localhost:3000/api/v3/welfare', { headers: getHeaders() });
+      const res = await axios.get('/api/v3/welfare', { headers: getHeaders() });
       setRules(res.data);
     } catch (error) { showError(error, "ไม่สามารถดึงข้อมูลได้"); } 
     finally { setIsLoading(false); }
@@ -103,10 +103,10 @@ export default function WelfareView() {
 
     try {
       if (modalMode === 'add') {
-        await axios.post('http://localhost:3000/api/v3/welfare', formData, { headers: getHeaders() });
+        await axios.post('/api/v3/welfare', formData, { headers: getHeaders() });
         showBanner('success', 'สร้างกฎสวัสดิการใหม่สำเร็จ!');
       } else {
-        await axios.patch(`http://localhost:3000/api/v3/welfare/${formData.id}`, formData, { headers: getHeaders() });
+        await axios.patch(`/api/v3/welfare/${formData.id}`, formData, { headers: getHeaders() });
         showBanner('success', 'อัปเดตกฎสวัสดิการสำเร็จ!');
       }
       setIsModalOpen(false);
@@ -116,7 +116,7 @@ export default function WelfareView() {
 
   const executeRule = async (ruleId) => {
     try {
-      const res = await axios.post(`http://localhost:3000/api/v3/welfare/${ruleId}/execute`, {}, { headers: getHeaders() });
+      const res = await axios.post(`/api/v3/welfare/${ruleId}/execute`, {}, { headers: getHeaders() });
       showBanner('success', res.data?.message || 'สั่งจ่ายสำเร็จ!');
       fetchRules();
     } catch (error) { showError(error, "สั่งจ่ายไม่สำเร็จ"); }
