@@ -3,7 +3,7 @@ import {
   Plus, Edit2, X, Upload, CreditCard, Search, Save, 
   Link as LinkIcon, AlertCircle, Loader2, CheckCircle, Trash2, Info, Building
 } from 'lucide-react';
-import axios from 'axios';
+import api from 'api';
 import { useTranslation } from 'react-i18next';
 
 import Button from '../components/Button';
@@ -114,7 +114,7 @@ export default function MembersView() {
     try {
       const isEdit = !!memberForm.id;
       const url = isEdit ? `/api/v3/members/${memberForm.id}` : `/api/v3/members`;
-      await axios({ method: isEdit ? 'patch' : 'post', url, data: memberForm, headers: { 'x-tenant-id': '2' } });
+      await api({ method: isEdit ? 'patch' : 'post', url, data: memberForm, headers: { 'x-tenant-id': '2' } });
       setIsModalOpen(false); showBanner('success', 'บันทึกสำเร็จ'); fetchMembers();
     } catch (error) { showError(error); }
   };
@@ -122,7 +122,7 @@ export default function MembersView() {
   const handleAddCard = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('/api/v3/cards', { cardUid: addCardForm.rfid }, { headers: { 'x-tenant-id': '2' } });
+      await api.post('/api/v3/cards', { cardUid: addCardForm.rfid }, { headers: { 'x-tenant-id': '2' } });
       showBanner('success', `เพิ่มบัตร ${addCardForm.rfid} เข้าคลังสำเร็จ`); setAddCardForm({ rfid: '' }); setIsAddCardModalOpen(false); fetchCards();
     } catch (error) { showError(error); }
   };
@@ -133,7 +133,7 @@ export default function MembersView() {
     if (!member) return;
     setIsBinding(true);
     try {
-      await axios.patch(`/api/v3/members/${member.id}/bind-card`, { rfid: bindData.rfid }, { headers: { 'x-tenant-id': '2' } });
+      await api.patch(`/api/v3/members/${member.id}/bind-card`, { rfid: bindData.rfid }, { headers: { 'x-tenant-id': '2' } });
       setBindData({ memberCode: '', rfid: '' }); setSubTab('cards'); showBanner('success', 'ผูกบัตรสำเร็จ!'); fetchCards(); fetchMembers();
     } catch (error) { showError(error); } 
     finally { setIsBinding(false); }
@@ -142,7 +142,7 @@ export default function MembersView() {
   const promptToggleCard = (uid, currentStatus) => {
     setConfirmDialog({ isOpen: true, title: 'ยืนยัน', message: `ยืนยันการ${currentStatus === 'ACTIVE' ? 'ระงับ' : 'เปิดใช้งาน'}บัตร?`, confirmText: 'ยืนยัน', type: currentStatus === 'ACTIVE' ? 'danger' : 'primary',
       onConfirm: async () => {
-        try { await axios.patch(`/api/v3/cards/${uid}/status`, { status: currentStatus === 'ACTIVE' ? 'FROZEN' : 'ACTIVE' }, { headers: { 'x-tenant-id': '2' } }); showBanner('success', 'เปลี่ยนสถานะสำเร็จ'); fetchCards(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false });
+        try { await api.patch(`/api/v3/cards/${uid}/status`, { status: currentStatus === 'ACTIVE' ? 'FROZEN' : 'ACTIVE' }, { headers: { 'x-tenant-id': '2' } }); showBanner('success', 'เปลี่ยนสถานะสำเร็จ'); fetchCards(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false });
       }
     });
   };
@@ -152,13 +152,13 @@ export default function MembersView() {
     try {
       const isEdit = !!groupForm.id;
       const url = isEdit ? `/api/v3/members/groups/${groupForm.id}` : `/api/v3/members/groups`;
-      await axios({ method: isEdit ? 'patch' : 'post', url, data: { name: groupForm.name }, headers: { 'x-tenant-id': '2' } });
+      await api({ method: isEdit ? 'patch' : 'post', url, data: { name: groupForm.name }, headers: { 'x-tenant-id': '2' } });
       setIsGroupModalOpen(false); showBanner('success', 'บันทึกสำเร็จ'); fetchCardGroups();
     } catch (error) { showError(error); }
   };
 
   const promptDeleteGroup = (id, name) => {
-    setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `คุณต้องการลบ "${name}" ใช่หรือไม่?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await axios.delete(`/api/v3/members/groups/${id}`, { headers: { 'x-tenant-id': '2' } }); showBanner('success', 'ลบสำเร็จ'); fetchCardGroups(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } });
+    setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `คุณต้องการลบ "${name}" ใช่หรือไม่?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await api.delete(`/api/v3/members/groups/${id}`, { headers: { 'x-tenant-id': '2' } }); showBanner('success', 'ลบสำเร็จ'); fetchCardGroups(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } });
   };
 
   const handleSubmitDept = async (e) => {
@@ -166,13 +166,13 @@ export default function MembersView() {
     try {
       const isEdit = !!deptForm.id;
       const url = isEdit ? `/api/v3/members/departments/${deptForm.id}` : `/api/v3/members/departments`;
-      await axios({ method: isEdit ? 'patch' : 'post', url, data: { name: deptForm.name }, headers: { 'x-tenant-id': '2' } });
+      await api({ method: isEdit ? 'patch' : 'post', url, data: { name: deptForm.name }, headers: { 'x-tenant-id': '2' } });
       setIsDeptModalOpen(false); showBanner('success', 'บันทึกสำเร็จ'); fetchDepartments();
     } catch (error) { showError(error); }
   };
 
   const promptDeleteDept = (id, name) => {
-    setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `คุณต้องการลบ "${name}" ใช่หรือไม่?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await axios.delete(`/api/v3/members/departments/${id}`, { headers: { 'x-tenant-id': '2' } }); showBanner('success', 'ลบสำเร็จ'); fetchDepartments(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } });
+    setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `คุณต้องการลบ "${name}" ใช่หรือไม่?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await api.delete(`/api/v3/members/departments/${id}`, { headers: { 'x-tenant-id': '2' } }); showBanner('success', 'ลบสำเร็จ'); fetchDepartments(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } });
   };
 
   const memberColumns = useMemo(() => [

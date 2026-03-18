@@ -164,7 +164,7 @@ export default function VendorsView() {
       if (subTab === 'vendors') {
         const isEdit = modalMode === 'edit';
         const url = isEdit ? `/api/v3/vendors/${vendorForm.vendorId}` : `/api/v3/vendors`;
-        await axios({ method: isEdit ? 'patch' : 'post', url, data: vendorForm, headers: { 'x-tenant-id': '2' } });
+        await api({ method: isEdit ? 'patch' : 'post', url, data: vendorForm, headers: { 'x-tenant-id': '2' } });
         showBanner('success', isEdit ? 'อัปเดตข้อมูลร้านค้าสำเร็จ' : 'เพิ่มร้านค้าใหม่สำเร็จ');
         fetchVendors();
       } else {

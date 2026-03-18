@@ -103,10 +103,10 @@ export default function WelfareView() {
 
     try {
       if (modalMode === 'add') {
-        await axios.post('/api/v3/welfare', formData, { headers: getHeaders() });
+        await api.post('/api/v3/welfare', formData, { headers: getHeaders() });
         showBanner('success', 'สร้างกฎสวัสดิการใหม่สำเร็จ!');
       } else {
-        await axios.patch(`/api/v3/welfare/${formData.id}`, formData, { headers: getHeaders() });
+        await api.patch(`/api/v3/welfare/${formData.id}`, formData, { headers: getHeaders() });
         showBanner('success', 'อัปเดตกฎสวัสดิการสำเร็จ!');
       }
       setIsModalOpen(false);
