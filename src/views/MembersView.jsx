@@ -3,7 +3,6 @@ import {
   Plus, Edit2, X, Upload, CreditCard, Search, Save, 
   Link as LinkIcon, AlertCircle, Loader2, CheckCircle, Trash2, Info, Building
 } from 'lucide-react';
-//import api from 'api';
 import { useTranslation } from 'react-i18next';
 
 import Button from '../components/Button';
@@ -12,7 +11,8 @@ import PageHeader from '../components/PageHeader';
 import Card from '../components/Card';
 import Input from '../components/Input';
 import Table from '../components/Table';
-import api from '../utils/api'; // ชี้ path ให้ตรงกับไฟล์ที่คุณสร้าง
+import api from '../utils/api'; 
+
 export default function MembersView() {
   const { t } = useTranslation();
 
@@ -35,10 +35,17 @@ export default function MembersView() {
   const [departments, setDepartments] = useState([]); 
   const [cardStats, setCardStats] = useState({ total: 0, active: 0, available: 0, inactive: 0 });
   
-  const [searchTerm, setSearchTerm] = useState('');
-  const [cardSearch, setCardSearch] = useState('');
-  const [memberSortConfig, setMemberSortConfig] = useState({ key: 'code', direction: 'asc' });
-  const [cardSortConfig, setCardSortConfig] = useState({ key: 'uid', direction: 'asc' });
+  // --- Search States ---
+  const [searchTerm, setSearchTerm] = useState(''); // ใช้ API (Members)
+  const [cardSearch, setCardSearch] = useState(''); // ใช้ API (Cards)
+  const [deptSearch, setDeptSearch] = useState(''); // ใช้ Local (Depts)
+  const [groupSearch, setGroupSearch] = useState(''); // ใช้ Local (Groups)
+
+  // --- Sort States ---
+  const [memberSortConfig, setMemberSortConfig] = useState({ key: null, direction: 'asc' });
+  const [cardSortConfig, setCardSortConfig] = useState({ key: null, direction: 'asc' });
+  const [deptSortConfig, setDeptSortConfig] = useState({ key: null, direction: 'asc' });
+  const [groupSortConfig, setGroupSortConfig] = useState({ key: null, direction: 'asc' });
   
   const [bindData, setBindData] = useState({ memberCode: '', rfid: '' });
   const [addCardForm, setAddCardForm] = useState({ rfid: '' });
@@ -62,17 +69,17 @@ export default function MembersView() {
   }, [showBanner]);
 
   const fetchCardGroups = async () => {
-    try { const res = await api.get('/api/v3/members/groups', { headers: { 'x-tenant-id': '2' } }); setCardGroups(res.data); setGroups(res.data); } catch (e) {}
+    try { const res = await api.get('/api/v3/members/groups'); setCardGroups(res.data); setGroups(res.data); } catch (e) {}
   };
 
   const fetchDepartments = async () => {
-    try { const res = await api.get('/api/v3/members/departments', { headers: { 'x-tenant-id': '2' } }); setDepartments(res.data); } catch (e) {}
+    try { const res = await api.get('/api/v3/members/departments'); setDepartments(res.data); } catch (e) {}
   };
 
   const fetchMembers = async (page = 1) => {
     setIsLoading(true);
     try {
-      const res = await api.get('/api/v3/members', { params: { search: searchTerm, page: page, limit: pagination.itemsPerPage }, headers: { 'x-tenant-id': '2' } });
+      const res = await api.get('/api/v3/members', { params: { search: searchTerm, page: page, limit: pagination.itemsPerPage } });
       const { data, meta } = res.data;
       const normalizedMembers = (Array.isArray(data) ? data : []).map(m => ({
         ...m, id: m.id || m.MemberID, code: m.code || m.MemberCode, name: m.name || m.FullName,
@@ -87,7 +94,7 @@ export default function MembersView() {
   const fetchCards = async () => {
     setIsLoading(true);
     try {
-      const res = await api.get('/api/v3/cards', { params: { search: cardSearch, page: 1, limit: 100 }, headers: { 'x-tenant-id': '2' } });
+      const res = await api.get('/api/v3/cards', { params: { search: cardSearch, page: 1, limit: 100 } });
       const fetchedCards = (Array.isArray(res.data?.data) ? res.data.data : []).map(c => ({ uid: c.uid || c.CardUID, linkedTo: c.linkedTo || (c.Member ? c.Member.FullName : null), cash: c.cash || c.CashBalance || 0, status: c.status || c.Status }));
       setCards(fetchedCards);
       const stats = fetchedCards.reduce((acc, curr) => {
@@ -114,7 +121,7 @@ export default function MembersView() {
     try {
       const isEdit = !!memberForm.id;
       const url = isEdit ? `/api/v3/members/${memberForm.id}` : `/api/v3/members`;
-      await api({ method: isEdit ? 'patch' : 'post', url, data: memberForm, headers: { 'x-tenant-id': '2' } });
+      await api({ method: isEdit ? 'patch' : 'post', url, data: memberForm });
       setIsModalOpen(false); showBanner('success', 'บันทึกสำเร็จ'); fetchMembers();
     } catch (error) { showError(error); }
   };
@@ -122,7 +129,7 @@ export default function MembersView() {
   const handleAddCard = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/api/v3/cards', { cardUid: addCardForm.rfid }, { headers: { 'x-tenant-id': '2' } });
+      await api.post('/api/v3/cards', { cardUid: addCardForm.rfid });
       showBanner('success', `เพิ่มบัตร ${addCardForm.rfid} เข้าคลังสำเร็จ`); setAddCardForm({ rfid: '' }); setIsAddCardModalOpen(false); fetchCards();
     } catch (error) { showError(error); }
   };
@@ -133,7 +140,7 @@ export default function MembersView() {
     if (!member) return;
     setIsBinding(true);
     try {
-      await api.patch(`/api/v3/members/${member.id}/bind-card`, { rfid: bindData.rfid }, { headers: { 'x-tenant-id': '2' } });
+      await api.patch(`/api/v3/members/${member.id}/bind-card`, { rfid: bindData.rfid });
       setBindData({ memberCode: '', rfid: '' }); setSubTab('cards'); showBanner('success', 'ผูกบัตรสำเร็จ!'); fetchCards(); fetchMembers();
     } catch (error) { showError(error); } 
     finally { setIsBinding(false); }
@@ -142,7 +149,7 @@ export default function MembersView() {
   const promptToggleCard = (uid, currentStatus) => {
     setConfirmDialog({ isOpen: true, title: 'ยืนยัน', message: `ยืนยันการ${currentStatus === 'ACTIVE' ? 'ระงับ' : 'เปิดใช้งาน'}บัตร?`, confirmText: 'ยืนยัน', type: currentStatus === 'ACTIVE' ? 'danger' : 'primary',
       onConfirm: async () => {
-        try { await api.patch(`/api/v3/cards/${uid}/status`, { status: currentStatus === 'ACTIVE' ? 'FROZEN' : 'ACTIVE' }, { headers: { 'x-tenant-id': '2' } }); showBanner('success', 'เปลี่ยนสถานะสำเร็จ'); fetchCards(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false });
+        try { await api.patch(`/api/v3/cards/${uid}/status`, { status: currentStatus === 'ACTIVE' ? 'FROZEN' : 'ACTIVE' }); showBanner('success', 'เปลี่ยนสถานะสำเร็จ'); fetchCards(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false });
       }
     });
   };
@@ -152,13 +159,13 @@ export default function MembersView() {
     try {
       const isEdit = !!groupForm.id;
       const url = isEdit ? `/api/v3/members/groups/${groupForm.id}` : `/api/v3/members/groups`;
-      await api({ method: isEdit ? 'patch' : 'post', url, data: { name: groupForm.name }, headers: { 'x-tenant-id': '2' } });
+      await api({ method: isEdit ? 'patch' : 'post', url, data: { name: groupForm.name } });
       setIsGroupModalOpen(false); showBanner('success', 'บันทึกสำเร็จ'); fetchCardGroups();
     } catch (error) { showError(error); }
   };
 
   const promptDeleteGroup = (id, name) => {
-    setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `คุณต้องการลบ "${name}" ใช่หรือไม่?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await api.delete(`/api/v3/members/groups/${id}`, { headers: { 'x-tenant-id': '2' } }); showBanner('success', 'ลบสำเร็จ'); fetchCardGroups(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } });
+    setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `คุณต้องการลบ "${name}" ใช่หรือไม่?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await api.delete(`/api/v3/members/groups/${id}`); showBanner('success', 'ลบสำเร็จ'); fetchCardGroups(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } });
   };
 
   const handleSubmitDept = async (e) => {
@@ -166,15 +173,53 @@ export default function MembersView() {
     try {
       const isEdit = !!deptForm.id;
       const url = isEdit ? `/api/v3/members/departments/${deptForm.id}` : `/api/v3/members/departments`;
-      await api({ method: isEdit ? 'patch' : 'post', url, data: { name: deptForm.name }, headers: { 'x-tenant-id': '2' } });
+      await api({ method: isEdit ? 'patch' : 'post', url, data: { name: deptForm.name } });
       setIsDeptModalOpen(false); showBanner('success', 'บันทึกสำเร็จ'); fetchDepartments();
     } catch (error) { showError(error); }
   };
 
   const promptDeleteDept = (id, name) => {
-    setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `คุณต้องการลบ "${name}" ใช่หรือไม่?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await api.delete(`/api/v3/members/departments/${id}`, { headers: { 'x-tenant-id': '2' } }); showBanner('success', 'ลบสำเร็จ'); fetchDepartments(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } });
+    setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `คุณต้องการลบ "${name}" ใช่หรือไม่?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await api.delete(`/api/v3/members/departments/${id}`); showBanner('success', 'ลบสำเร็จ'); fetchDepartments(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } });
   };
 
+  // ==========================================
+  // 🟢 Data Processing (Sort & Filter)
+  // ==========================================
+  const genericSort = (key, config, setConfig) => {
+    let direction = 'asc';
+    if (config.key === key && config.direction === 'asc') direction = 'desc';
+    setConfig({ key, direction });
+  };
+
+  const sortArray = (arr, config) => {
+    if (!config.key) return arr;
+    return [...arr].sort((a, b) => {
+      let aVal = a[config.key]; let bVal = b[config.key];
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      return aVal < bVal ? (config.direction === 'asc' ? -1 : 1) : aVal > bVal ? (config.direction === 'asc' ? 1 : -1) : 0;
+    });
+  };
+
+  const processedMembers = useMemo(() => sortArray(members, memberSortConfig), [members, memberSortConfig]);
+  const processedCards = useMemo(() => sortArray(cards, cardSortConfig), [cards, cardSortConfig]);
+  
+  const processedDepartments = useMemo(() => {
+    let list = departments;
+    if (deptSearch) list = list.filter(d => d.name?.toLowerCase().includes(deptSearch.toLowerCase()) || d.id?.toString().includes(deptSearch));
+    return sortArray(list, deptSortConfig);
+  }, [departments, deptSearch, deptSortConfig]);
+
+  const processedGroups = useMemo(() => {
+    let list = groups;
+    if (groupSearch) list = list.filter(g => g.name?.toLowerCase().includes(groupSearch.toLowerCase()) || g.id?.toString().includes(groupSearch));
+    return sortArray(list, groupSortConfig);
+  }, [groups, groupSearch, groupSortConfig]);
+
+
+  // ==========================================
+  // 🟢 Table Columns Config
+  // ==========================================
   const memberColumns = useMemo(() => [
     { header: t('members.colIdentity'), accessor: 'code', key: 'code', render: (m) => (<div className="flex flex-col"><span className="font-bold text-slate-800">{m.code}</span><span className="text-sm text-slate-500">{m.name}</span></div>) },
     { header: t('members.colType'), accessor: 'type', key: 'type', render: (m) => {
@@ -206,14 +251,14 @@ export default function MembersView() {
   ], [t]);
 
   const groupColumns = useMemo(() => [
-    { header: t('members.colGroupId'), accessor: 'id', render: (g) => <span className="text-slate-500">#{g.id}</span> },
-    { header: t('members.colGroupName'), accessor: 'name', render: (g) => <span className="font-bold text-amber-700 flex items-center gap-2"><CreditCard size={16}/> {g.name}</span> },
+    { header: t('members.colGroupId'), accessor: 'id', key: 'id', render: (g) => <span className="text-slate-500">#{g.id}</span> },
+    { header: t('members.colGroupName'), accessor: 'name', key: 'name', render: (g) => <span className="font-bold text-amber-700 flex items-center gap-2"><CreditCard size={16}/> {g.name}</span> },
     { header: t('members.colAction'), align: 'right', render: (g) => (<div className="flex justify-end gap-1"><Button variant="ghost" icon={Edit2} onClick={() => { setGroupForm({ id: g.id, name: g.name }); setIsGroupModalOpen(true); }} /><Button variant="ghost" icon={Trash2} className="text-rose-500 hover:bg-rose-50" onClick={() => promptDeleteGroup(g.id, g.name)} /></div>)}
   ], [t]);
 
   const deptColumns = useMemo(() => [
-    { header: t('members.colDeptId'), accessor: 'id', render: (d) => <span className="text-slate-500">#{d.id}</span> },
-    { header: t('members.colDeptName'), accessor: 'name', render: (d) => <span className="font-bold text-slate-800 flex items-center gap-2"><Building size={16} className="text-emerald-500"/> {d.name}</span> },
+    { header: t('members.colDeptId'), accessor: 'id', key: 'id', render: (d) => <span className="text-slate-500">#{d.id}</span> },
+    { header: t('members.colDeptName'), accessor: 'name', key: 'name', render: (d) => <span className="font-bold text-slate-800 flex items-center gap-2"><Building size={16} className="text-emerald-500"/> {d.name}</span> },
     { header: t('members.colAction'), align: 'right', render: (d) => (<div className="flex justify-end gap-1"><Button variant="ghost" icon={Edit2} onClick={() => { setDeptForm({ id: d.id, name: d.name }); setIsDeptModalOpen(true); }} /><Button variant="ghost" icon={Trash2} className="text-rose-500 hover:bg-rose-50" onClick={() => promptDeleteDept(d.id, d.name)} /></div>)}
   ], [t]);
 
@@ -263,7 +308,7 @@ export default function MembersView() {
               </div>
             </div>
             <div className="flex-1 overflow-auto p-1">
-               <Table columns={memberColumns} data={members} isLoading={isLoading} emptyMessage={t('members.empty')} />
+               <Table columns={memberColumns} data={processedMembers} isLoading={isLoading} emptyMessage={t('members.empty')} onSort={(key) => genericSort(key, memberSortConfig, setMemberSortConfig)} sortConfig={memberSortConfig} />
             </div>
           </div>
         )}
@@ -296,19 +341,39 @@ export default function MembersView() {
               </div>
             </div>
             <div className="flex-1 overflow-auto border border-slate-100 rounded-2xl shadow-sm">
-               <Table columns={cardColumns} data={cards} isLoading={isLoading} emptyMessage={t('members.emptyCards')} />
+               <Table columns={cardColumns} data={processedCards} isLoading={isLoading} emptyMessage={t('members.emptyCards')} onSort={(key) => genericSort(key, cardSortConfig, setCardSortConfig)} sortConfig={cardSortConfig} />
             </div>
           </div>
         )}
 
         {/* --- VIEW: DEPARTMENTS --- */}
         {subTab === 'departments' && (
-          <div className="flex-1 overflow-auto p-4"><Table columns={deptColumns} data={departments} isLoading={isLoading} emptyMessage={t('members.emptyDepts')} /></div>
+          <div className="flex flex-col h-full">
+             <div className="p-4 border-b border-slate-100 shrink-0">
+              <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" placeholder={t('members.searchDept') || "ค้นหาแผนก..."} value={deptSearch} onChange={(e) => setDeptSearch(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+               <Table columns={deptColumns} data={processedDepartments} isLoading={isLoading} emptyMessage={t('members.emptyDepts')} onSort={(key) => genericSort(key, deptSortConfig, setDeptSortConfig)} sortConfig={deptSortConfig} />
+            </div>
+          </div>
         )}
 
         {/* --- VIEW: GROUPS --- */}
         {subTab === 'groups' && (
-          <div className="flex-1 overflow-auto p-4"><Table columns={groupColumns} data={groups} isLoading={isLoading} emptyMessage={t('members.emptyGroups')} /></div>
+          <div className="flex flex-col h-full">
+            <div className="p-4 border-b border-slate-100 shrink-0">
+              <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" placeholder={t('members.searchGroup') || "ค้นหากลุ่มบัตร..."} value={groupSearch} onChange={(e) => setGroupSearch(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              <Table columns={groupColumns} data={processedGroups} isLoading={isLoading} emptyMessage={t('members.emptyGroups')} onSort={(key) => genericSort(key, groupSortConfig, setGroupSortConfig)} sortConfig={groupSortConfig} />
+            </div>
+          </div>
         )}
 
         {/* --- VIEW: BIND CARD --- */}
