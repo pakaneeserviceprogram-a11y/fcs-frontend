@@ -9,7 +9,7 @@ import Input from '../components/Input';
 import Card from '../components/Card';
 import Table from '../components/Table';
 import PageHeader from '../components/PageHeader';
-
+import api from '../utils/api';
 export default function TerminalsView() {
   const { t } = useTranslation();
 

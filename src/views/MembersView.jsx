@@ -12,7 +12,7 @@ import PageHeader from '../components/PageHeader';
 import Card from '../components/Card';
 import Input from '../components/Input';
 import Table from '../components/Table';
-
+import api from '../utils/api'; // ชี้ path ให้ตรงกับไฟล์ที่คุณสร้าง
 export default function MembersView() {
   const { t } = useTranslation();
 
@@ -62,17 +62,17 @@ export default function MembersView() {
   }, [showBanner]);
 
   const fetchCardGroups = async () => {
-    try { const res = await axios.get('http://localhost:3000/api/v3/members/groups', { headers: { 'x-tenant-id': '2' } }); setCardGroups(res.data); setGroups(res.data); } catch (e) {}
+    try { const res = await axios.get('/api/v3/members/groups', { headers: { 'x-tenant-id': '2' } }); setCardGroups(res.data); setGroups(res.data); } catch (e) {}
   };
 
   const fetchDepartments = async () => {
-    try { const res = await axios.get('http://localhost:3000/api/v3/members/departments', { headers: { 'x-tenant-id': '2' } }); setDepartments(res.data); } catch (e) {}
+    try { const res = await axios.get('/api/v3/members/departments', { headers: { 'x-tenant-id': '2' } }); setDepartments(res.data); } catch (e) {}
   };
 
   const fetchMembers = async (page = 1) => {
     setIsLoading(true);
     try {
-      const res = await axios.get('http://localhost:3000/api/v3/members', { params: { search: searchTerm, page: page, limit: pagination.itemsPerPage }, headers: { 'x-tenant-id': '2' } });
+      const res = await axios.get('/api/v3/members', { params: { search: searchTerm, page: page, limit: pagination.itemsPerPage }, headers: { 'x-tenant-id': '2' } });
       const { data, meta } = res.data;
       const normalizedMembers = (Array.isArray(data) ? data : []).map(m => ({
         ...m, id: m.id || m.MemberID, code: m.code || m.MemberCode, name: m.name || m.FullName,
@@ -87,7 +87,7 @@ export default function MembersView() {
   const fetchCards = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get('http://localhost:3000/api/v3/cards', { params: { search: cardSearch, page: 1, limit: 100 }, headers: { 'x-tenant-id': '2' } });
+      const res = await axios.get('/api/v3/cards', { params: { search: cardSearch, page: 1, limit: 100 }, headers: { 'x-tenant-id': '2' } });
       const fetchedCards = (Array.isArray(res.data?.data) ? res.data.data : []).map(c => ({ uid: c.uid || c.CardUID, linkedTo: c.linkedTo || (c.Member ? c.Member.FullName : null), cash: c.cash || c.CashBalance || 0, status: c.status || c.Status }));
       setCards(fetchedCards);
       const stats = fetchedCards.reduce((acc, curr) => {
@@ -113,7 +113,7 @@ export default function MembersView() {
     e.preventDefault();
     try {
       const isEdit = !!memberForm.id;
-      const url = isEdit ? `http://localhost:3000/api/v3/members/${memberForm.id}` : `http://localhost:3000/api/v3/members`;
+      const url = isEdit ? `/api/v3/members/${memberForm.id}` : `/api/v3/members`;
       await axios({ method: isEdit ? 'patch' : 'post', url, data: memberForm, headers: { 'x-tenant-id': '2' } });
       setIsModalOpen(false); showBanner('success', 'บันทึกสำเร็จ'); fetchMembers();
     } catch (error) { showError(error); }
@@ -122,7 +122,7 @@ export default function MembersView() {
   const handleAddCard = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:3000/api/v3/cards', { cardUid: addCardForm.rfid }, { headers: { 'x-tenant-id': '2' } });
+      await axios.post('/api/v3/cards', { cardUid: addCardForm.rfid }, { headers: { 'x-tenant-id': '2' } });
       showBanner('success', `เพิ่มบัตร ${addCardForm.rfid} เข้าคลังสำเร็จ`); setAddCardForm({ rfid: '' }); setIsAddCardModalOpen(false); fetchCards();
     } catch (error) { showError(error); }
   };
@@ -133,7 +133,7 @@ export default function MembersView() {
     if (!member) return;
     setIsBinding(true);
     try {
-      await axios.patch(`http://localhost:3000/api/v3/members/${member.id}/bind-card`, { rfid: bindData.rfid }, { headers: { 'x-tenant-id': '2' } });
+      await axios.patch(`/api/v3/members/${member.id}/bind-card`, { rfid: bindData.rfid }, { headers: { 'x-tenant-id': '2' } });
       setBindData({ memberCode: '', rfid: '' }); setSubTab('cards'); showBanner('success', 'ผูกบัตรสำเร็จ!'); fetchCards(); fetchMembers();
     } catch (error) { showError(error); } 
     finally { setIsBinding(false); }
@@ -142,7 +142,7 @@ export default function MembersView() {
   const promptToggleCard = (uid, currentStatus) => {
     setConfirmDialog({ isOpen: true, title: 'ยืนยัน', message: `ยืนยันการ${currentStatus === 'ACTIVE' ? 'ระงับ' : 'เปิดใช้งาน'}บัตร?`, confirmText: 'ยืนยัน', type: currentStatus === 'ACTIVE' ? 'danger' : 'primary',
       onConfirm: async () => {
-        try { await axios.patch(`http://localhost:3000/api/v3/cards/${uid}/status`, { status: currentStatus === 'ACTIVE' ? 'FROZEN' : 'ACTIVE' }, { headers: { 'x-tenant-id': '2' } }); showBanner('success', 'เปลี่ยนสถานะสำเร็จ'); fetchCards(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false });
+        try { await axios.patch(`/api/v3/cards/${uid}/status`, { status: currentStatus === 'ACTIVE' ? 'FROZEN' : 'ACTIVE' }, { headers: { 'x-tenant-id': '2' } }); showBanner('success', 'เปลี่ยนสถานะสำเร็จ'); fetchCards(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false });
       }
     });
   };
@@ -151,28 +151,28 @@ export default function MembersView() {
     e.preventDefault();
     try {
       const isEdit = !!groupForm.id;
-      const url = isEdit ? `http://localhost:3000/api/v3/members/groups/${groupForm.id}` : `http://localhost:3000/api/v3/members/groups`;
+      const url = isEdit ? `/api/v3/members/groups/${groupForm.id}` : `/api/v3/members/groups`;
       await axios({ method: isEdit ? 'patch' : 'post', url, data: { name: groupForm.name }, headers: { 'x-tenant-id': '2' } });
       setIsGroupModalOpen(false); showBanner('success', 'บันทึกสำเร็จ'); fetchCardGroups();
     } catch (error) { showError(error); }
   };
 
   const promptDeleteGroup = (id, name) => {
-    setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `คุณต้องการลบ "${name}" ใช่หรือไม่?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await axios.delete(`http://localhost:3000/api/v3/members/groups/${id}`, { headers: { 'x-tenant-id': '2' } }); showBanner('success', 'ลบสำเร็จ'); fetchCardGroups(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } });
+    setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `คุณต้องการลบ "${name}" ใช่หรือไม่?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await axios.delete(`/api/v3/members/groups/${id}`, { headers: { 'x-tenant-id': '2' } }); showBanner('success', 'ลบสำเร็จ'); fetchCardGroups(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } });
   };
 
   const handleSubmitDept = async (e) => {
     e.preventDefault();
     try {
       const isEdit = !!deptForm.id;
-      const url = isEdit ? `http://localhost:3000/api/v3/members/departments/${deptForm.id}` : `http://localhost:3000/api/v3/members/departments`;
+      const url = isEdit ? `/api/v3/members/departments/${deptForm.id}` : `/api/v3/members/departments`;
       await axios({ method: isEdit ? 'patch' : 'post', url, data: { name: deptForm.name }, headers: { 'x-tenant-id': '2' } });
       setIsDeptModalOpen(false); showBanner('success', 'บันทึกสำเร็จ'); fetchDepartments();
     } catch (error) { showError(error); }
   };
 
   const promptDeleteDept = (id, name) => {
-    setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `คุณต้องการลบ "${name}" ใช่หรือไม่?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await axios.delete(`http://localhost:3000/api/v3/members/departments/${id}`, { headers: { 'x-tenant-id': '2' } }); showBanner('success', 'ลบสำเร็จ'); fetchDepartments(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } });
+    setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `คุณต้องการลบ "${name}" ใช่หรือไม่?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await axios.delete(`/api/v3/members/departments/${id}`, { headers: { 'x-tenant-id': '2' } }); showBanner('success', 'ลบสำเร็จ'); fetchDepartments(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } });
   };
 
   const memberColumns = useMemo(() => [

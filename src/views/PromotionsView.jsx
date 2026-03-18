@@ -9,7 +9,7 @@ import Input from '../components/Input';
 import Card from '../components/Card';
 import Table from '../components/Table';
 import PageHeader from '../components/PageHeader';
-
+import api from '../utils/api';
 export default function PromotionsView() {
   const { t } = useTranslation();
 
@@ -37,7 +37,7 @@ export default function PromotionsView() {
   const fetchPromos = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get('http://localhost:3000/api/v3/promotions', { headers: { 'x-tenant-id': '2' } });
+      const res = await axios.get('/api/v3/promotions', { headers: { 'x-tenant-id': '2' } });
       setPromos(res.data);
     } catch (error) { showBanner('error', 'ดึงข้อมูลโปรโมชั่นล้มเหลว'); } 
     finally { setIsLoading(false); }
@@ -68,7 +68,7 @@ export default function PromotionsView() {
     e.preventDefault();
     try {
       const isEdit = modalMode === 'edit';
-      const url = isEdit ? `http://localhost:3000/api/v3/promotions/${formData.id}` : `http://localhost:3000/api/v3/promotions`;
+      const url = isEdit ? `/api/v3/promotions/${formData.id}` : `/api/v3/promotions`;
       await axios({ method: isEdit ? 'patch' : 'post', url, data: formData, headers: { 'x-tenant-id': '2' } });
       
       showBanner('success', isEdit ? 'อัปเดตแคมเปญสำเร็จ' : 'สร้างแคมเปญสำเร็จ');

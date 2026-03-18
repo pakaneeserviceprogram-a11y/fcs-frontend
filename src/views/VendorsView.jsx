@@ -10,7 +10,7 @@ import Card from '../components/Card';
 import Input from '../components/Input';
 import Table from '../components/Table';
 import Pagination from '../components/Pagination';
-
+import api from '../utils/api';
 export default function VendorsView() {
   const { t } = useTranslation();
 
@@ -63,7 +63,7 @@ export default function VendorsView() {
   const fetchVendors = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get('http://localhost:3000/api/v3/vendors', { headers: { 'x-tenant-id': '2' } });
+      const res = await axios.get('/api/v3/vendors', { headers: { 'x-tenant-id': '2' } });
       setVendors(res.data);
     } catch (error) { showError(error, "ดึงข้อมูลร้านค้าล้มเหลว"); } 
     finally { setIsLoading(false); }
@@ -72,7 +72,7 @@ export default function VendorsView() {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get('http://localhost:3000/api/v3/vendors/products', { 
+      const res = await axios.get('/api/v3/vendors/products', { 
         headers: { 'x-tenant-id': '2' },
         params: {
           page: productPage,
@@ -163,13 +163,13 @@ export default function VendorsView() {
     try {
       if (subTab === 'vendors') {
         const isEdit = modalMode === 'edit';
-        const url = isEdit ? `http://localhost:3000/api/v3/vendors/${vendorForm.vendorId}` : `http://localhost:3000/api/v3/vendors`;
+        const url = isEdit ? `/api/v3/vendors/${vendorForm.vendorId}` : `/api/v3/vendors`;
         await axios({ method: isEdit ? 'patch' : 'post', url, data: vendorForm, headers: { 'x-tenant-id': '2' } });
         showBanner('success', isEdit ? 'อัปเดตข้อมูลร้านค้าสำเร็จ' : 'เพิ่มร้านค้าใหม่สำเร็จ');
         fetchVendors();
       } else {
         const isEdit = modalMode === 'edit';
-        const url = isEdit ? `http://localhost:3000/api/v3/vendors/products/${productForm.code}` : `http://localhost:3000/api/v3/vendors/products`;
+        const url = isEdit ? `/api/v3/vendors/products/${productForm.code}` : `/api/v3/vendors/products`;
         
         const formData = new FormData();
         formData.append('code', productForm.code);
