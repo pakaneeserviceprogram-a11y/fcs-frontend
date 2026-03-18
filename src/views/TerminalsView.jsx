@@ -32,8 +32,8 @@ export default function TerminalsView() {
     setIsLoading(true);
     try {
       const [termRes, venRes] = await Promise.all([
-        axios.get('http://localhost:3000/api/v3/terminals', { headers: { 'x-tenant-id': '2' } }),
-        axios.get('http://localhost:3000/api/v3/vendors', { headers: { 'x-tenant-id': '2' } })
+        axios.get('/api/v3/terminals', { headers: { 'x-tenant-id': '2' } }),
+        axios.get('/api/v3/vendors', { headers: { 'x-tenant-id': '2' } })
       ]);
       setTerminals(termRes.data);
       setVendors(venRes.data);
@@ -66,7 +66,7 @@ export default function TerminalsView() {
 
     try {
       const isEdit = modalMode === 'edit';
-      const url = isEdit ? `http://localhost:3000/api/v3/terminals/${formData.id}` : `http://localhost:3000/api/v3/terminals`;
+      const url = isEdit ? `/api/v3/terminals/${formData.id}` : `/api/v3/terminals`;
       await axios({ method: isEdit ? 'patch' : 'post', url, data: formData, headers: { 'x-tenant-id': '2' } });
       
       showBanner('success', isEdit ? 'อัปเดตเครื่องสำเร็จ' : 'ลงทะเบียนเครื่องใหม่สำเร็จ');
