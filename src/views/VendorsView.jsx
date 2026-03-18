@@ -63,7 +63,7 @@ export default function VendorsView() {
   const fetchVendors = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get('/api/v3/vendors', { headers: { 'x-tenant-id': '2' } });
+      const res = await api.get('/api/v3/vendors', { headers: { 'x-tenant-id': '2' } });
       setVendors(res.data);
     } catch (error) { showError(error, "ดึงข้อมูลร้านค้าล้มเหลว"); } 
     finally { setIsLoading(false); }
@@ -72,7 +72,7 @@ export default function VendorsView() {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get('/api/v3/vendors/products', { 
+      const res = await api.get('/api/v3/vendors/products', { 
         headers: { 'x-tenant-id': '2' },
         params: {
           page: productPage,

@@ -51,7 +51,7 @@ export default function WelfareView() {
   // ==========================================
   const fetchCardGroups = async () => {
     try {
-      const res = await axios.get('/api/v3/members/groups', { headers: getHeaders() });
+      const res = await api.get('/api/v3/members/groups', { headers: getHeaders() });
       setCardGroups(res.data);
     } catch (error) {}
   };
@@ -59,7 +59,7 @@ export default function WelfareView() {
   const fetchRules = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get('/api/v3/welfare', { headers: getHeaders() });
+      const res = await api.get('/api/v3/welfare', { headers: getHeaders() });
       setRules(res.data);
     } catch (error) { showError(error, "ไม่สามารถดึงข้อมูลได้"); } 
     finally { setIsLoading(false); }

@@ -37,7 +37,7 @@ export default function PromotionsView() {
   const fetchPromos = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get('/api/v3/promotions', { headers: { 'x-tenant-id': '2' } });
+      const res = await api.get('/api/v3/promotions', { headers: { 'x-tenant-id': '2' } });
       setPromos(res.data);
     } catch (error) { showBanner('error', 'ดึงข้อมูลโปรโมชั่นล้มเหลว'); } 
     finally { setIsLoading(false); }

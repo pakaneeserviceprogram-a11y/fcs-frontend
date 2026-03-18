@@ -62,17 +62,17 @@ export default function MembersView() {
   }, [showBanner]);
 
   const fetchCardGroups = async () => {
-    try { const res = await axios.get('/api/v3/members/groups', { headers: { 'x-tenant-id': '2' } }); setCardGroups(res.data); setGroups(res.data); } catch (e) {}
+    try { const res = await api.get('/api/v3/members/groups', { headers: { 'x-tenant-id': '2' } }); setCardGroups(res.data); setGroups(res.data); } catch (e) {}
   };
 
   const fetchDepartments = async () => {
-    try { const res = await axios.get('/api/v3/members/departments', { headers: { 'x-tenant-id': '2' } }); setDepartments(res.data); } catch (e) {}
+    try { const res = await api.get('/api/v3/members/departments', { headers: { 'x-tenant-id': '2' } }); setDepartments(res.data); } catch (e) {}
   };
 
   const fetchMembers = async (page = 1) => {
     setIsLoading(true);
     try {
-      const res = await axios.get('/api/v3/members', { params: { search: searchTerm, page: page, limit: pagination.itemsPerPage }, headers: { 'x-tenant-id': '2' } });
+      const res = await api.get('/api/v3/members', { params: { search: searchTerm, page: page, limit: pagination.itemsPerPage }, headers: { 'x-tenant-id': '2' } });
       const { data, meta } = res.data;
       const normalizedMembers = (Array.isArray(data) ? data : []).map(m => ({
         ...m, id: m.id || m.MemberID, code: m.code || m.MemberCode, name: m.name || m.FullName,
@@ -87,7 +87,7 @@ export default function MembersView() {
   const fetchCards = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get('/api/v3/cards', { params: { search: cardSearch, page: 1, limit: 100 }, headers: { 'x-tenant-id': '2' } });
+      const res = await api.get('/api/v3/cards', { params: { search: cardSearch, page: 1, limit: 100 }, headers: { 'x-tenant-id': '2' } });
       const fetchedCards = (Array.isArray(res.data?.data) ? res.data.data : []).map(c => ({ uid: c.uid || c.CardUID, linkedTo: c.linkedTo || (c.Member ? c.Member.FullName : null), cash: c.cash || c.CashBalance || 0, status: c.status || c.Status }));
       setCards(fetchedCards);
       const stats = fetchedCards.reduce((acc, curr) => {

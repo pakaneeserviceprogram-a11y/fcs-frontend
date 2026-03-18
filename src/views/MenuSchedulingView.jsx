@@ -44,7 +44,7 @@ export default function MenuSchedulingView() {
   useEffect(() => {
     const fetchVendors = async () => {
       try {
-        const res = await axios.get('/api/v3/menu-schedules/vendors', { headers: getHeaders() });
+        const res = await api.get('/api/v3/menu-schedules/vendors', { headers: getHeaders() });
         setVendors(res.data);
         if (res.data.length > 0) setSelectedVendor(res.data[0].VendorID);
       } catch (e) { showBanner('error', 'โหลดรายชื่อร้านค้าไม่สำเร็จ'); }
@@ -59,8 +59,8 @@ export default function MenuSchedulingView() {
       setIsLoading(true);
       try {
         const [prodRes, schedRes] = await Promise.all([
-          axios.get(`/api/v3/menu-schedules/products?vendorId=${selectedVendor}`, { headers: getHeaders() }),
-          axios.get(`/api/v3/menu-schedules?date=${selectedDate}&vendorId=${selectedVendor}`, { headers: getHeaders() })
+          api.get(`/api/v3/menu-schedules/products?vendorId=${selectedVendor}`, { headers: getHeaders() }),
+          api.get(`/api/v3/menu-schedules?date=${selectedDate}&vendorId=${selectedVendor}`, { headers: getHeaders() })
         ]);
         setAllProducts(prodRes.data);
         setScheduledMenus(schedRes.data);
@@ -86,7 +86,7 @@ export default function MenuSchedulingView() {
     try {
       const periods = ['ALL_DAY', 'BREAKFAST', 'LUNCH', 'DINNER'];
       await Promise.all(periods.map(period => 
-        axios.post('/api/v3/menu-schedules/bulk', {
+        api.post('/api/v3/menu-schedules/bulk', {
           date: selectedDate, period: period, productIds: scheduledMenus[period].map(p => p.id), vendorId: selectedVendor
         }, { headers: getHeaders() })
       ));
@@ -106,7 +106,7 @@ export default function MenuSchedulingView() {
   const handleCopySchedule = async () => {
     if (targetDates.length === 0) return showBanner('error', 'กรุณาระบุวันที่เป้าหมายอย่างน้อย 1 วัน');
     try {
-      await axios.post('/api/v3/menu-schedules/copy', {
+      await api.post('/api/v3/menu-schedules/copy', {
         fromDate: selectedDate, targetDates: targetDates, vendorId: selectedVendor
       }, { headers: getHeaders() });
       setCopyModalOpen(false);

@@ -32,8 +32,8 @@ export default function TerminalsView() {
     setIsLoading(true);
     try {
       const [termRes, venRes] = await Promise.all([
-        axios.get('/api/v3/terminals', { headers: { 'x-tenant-id': '2' } }),
-        axios.get('/api/v3/vendors', { headers: { 'x-tenant-id': '2' } })
+        api.get('/api/v3/terminals', { headers: { 'x-tenant-id': '2' } }),
+        api.get('/api/v3/vendors', { headers: { 'x-tenant-id': '2' } })
       ]);
       setTerminals(termRes.data);
       setVendors(venRes.data);
