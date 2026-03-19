@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Plus, Edit2, X, Upload, CreditCard, Search, Save, 
-  Link as LinkIcon, AlertCircle, Loader2, CheckCircle, Trash2, Info, Building
+  Link as LinkIcon, AlertCircle, CheckCircle, Trash2, Building, Users
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -19,43 +19,55 @@ export default function MembersView() {
   const [subTab, setSubTab] = useState('members'); 
   const [isLoading, setIsLoading] = useState(false);
   
+  // --- Modals ---
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [isDeptModalOpen, setIsDeptModalOpen] = useState(false); 
+  const [isTypeModalOpen, setIsTypeModalOpen] = useState(false); 
   const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
   const [isBinding, setIsBinding] = useState(false);
   
   const [alertMsg, setAlertMsg] = useState({ type: '', text: '' }); 
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', confirmText: '', type: 'primary', onConfirm: null });
 
+  // --- Data States ---
   const [members, setMembers] = useState([]);
   const [cards, setCards] = useState([]);
   const [groups, setGroups] = useState([]);
   const [cardGroups, setCardGroups] = useState([]); 
   const [departments, setDepartments] = useState([]); 
+  const [memberTypes, setMemberTypes] = useState([]); 
   const [cardStats, setCardStats] = useState({ total: 0, active: 0, available: 0, inactive: 0 });
   
   // --- Search States ---
-  const [searchTerm, setSearchTerm] = useState(''); // ใช้ API (Members)
-  const [cardSearch, setCardSearch] = useState(''); // ใช้ API (Cards)
-  const [deptSearch, setDeptSearch] = useState(''); // ใช้ Local (Depts)
-  const [groupSearch, setGroupSearch] = useState(''); // ใช้ Local (Groups)
+  const [searchTerm, setSearchTerm] = useState(''); 
+  const [cardSearch, setCardSearch] = useState(''); 
+  const [deptSearch, setDeptSearch] = useState(''); 
+  const [groupSearch, setGroupSearch] = useState(''); 
+  const [typeSearch, setTypeSearch] = useState(''); 
 
   // --- Sort States ---
   const [memberSortConfig, setMemberSortConfig] = useState({ key: null, direction: 'asc' });
   const [cardSortConfig, setCardSortConfig] = useState({ key: null, direction: 'asc' });
   const [deptSortConfig, setDeptSortConfig] = useState({ key: null, direction: 'asc' });
   const [groupSortConfig, setGroupSortConfig] = useState({ key: null, direction: 'asc' });
+  const [typeSortConfig, setTypeSortConfig] = useState({ key: null, direction: 'asc' });
   
+  // --- Form States (💡 เพิ่ม groupId ใน Form) ---
   const [bindData, setBindData] = useState({ memberCode: '', rfid: '' });
   const [addCardForm, setAddCardForm] = useState({ rfid: '' });
   
-  const initialMemberForm = { id: '', code: '', name: '', type: 'STUDENT', department: '', groupId: '', status: 'ACTIVE' };
+  const initialMemberForm = { id: '', code: '', name: '', type: '', department: '', groupId: '', status: 'ACTIVE' };
   const [memberForm, setMemberForm] = useState(initialMemberForm);
   const [groupForm, setGroupForm] = useState({ id: '', name: '' });
-  const [deptForm, setDeptForm] = useState({ id: '', name: '' }); 
+  const [deptForm, setDeptForm] = useState({ id: '', name: '', groupId: '' }); 
+  const [typeForm, setTypeForm] = useState({ id: '', name: '', groupId: '' }); 
+  
   const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1, totalItems: 0, itemsPerPage: 20 });
 
+  // ==========================================
+  // 🟢 Alerts & Notifications
+  // ==========================================
   const showBanner = useCallback((type, message) => {
     setAlertMsg({ type, text: message });
     setTimeout(() => setAlertMsg({ type: '', text: '' }), type === 'error' ? 5000 : 3000);
@@ -68,13 +80,12 @@ export default function MembersView() {
     showBanner('error', message);
   }, [showBanner]);
 
-  const fetchCardGroups = async () => {
-    try { const res = await api.get('/api/v3/members/groups'); setCardGroups(res.data); setGroups(res.data); } catch (e) {}
-  };
-
-  const fetchDepartments = async () => {
-    try { const res = await api.get('/api/v3/members/departments'); setDepartments(res.data); } catch (e) {}
-  };
+  // ==========================================
+  // 🟢 Fetch Data Functions
+  // ==========================================
+  const fetchCardGroups = async () => { try { const res = await api.get('/api/v3/members/groups'); setCardGroups(res.data); setGroups(res.data); } catch (e) {} };
+  const fetchDepartments = async () => { try { const res = await api.get('/api/v3/members/departments'); setDepartments(res.data); } catch (e) {} };
+  const fetchMemberTypes = async () => { try { const res = await api.get('/api/v3/members/types'); setMemberTypes(res.data || []); } catch (e) {} };
 
   const fetchMembers = async (page = 1) => {
     setIsLoading(true);
@@ -110,12 +121,18 @@ export default function MembersView() {
   };
 
   useEffect(() => { const delayDebounceFn = setTimeout(() => { if (subTab === 'members') fetchMembers(1); }, 500); return () => clearTimeout(delayDebounceFn); }, [searchTerm]);
+  
   useEffect(() => {
-    fetchCardGroups(); fetchDepartments(); 
+    fetchCardGroups(); 
+    fetchDepartments(); 
+    fetchMemberTypes(); 
     if (subTab === 'members') fetchMembers(pagination.currentPage);
     else if (subTab === 'cards' || subTab === 'cards_bind') { fetchCards(); if (members.length === 0) fetchMembers(); }
   }, [subTab, pagination.currentPage, cardSearch]);
 
+  // ==========================================
+  // 🟢 Handlers (Submit & Delete)
+  // ==========================================
   const handleSubmitMember = async (e) => {
     e.preventDefault();
     try {
@@ -126,107 +143,83 @@ export default function MembersView() {
     } catch (error) { showError(error); }
   };
 
-  const handleAddCard = async (e) => {
-    e.preventDefault();
-    try {
-      await api.post('/api/v3/cards', { cardUid: addCardForm.rfid });
-      showBanner('success', `เพิ่มบัตร ${addCardForm.rfid} เข้าคลังสำเร็จ`); setAddCardForm({ rfid: '' }); setIsAddCardModalOpen(false); fetchCards();
-    } catch (error) { showError(error); }
-  };
-
-  const handleBindCard = async (e) => {
-    e.preventDefault();
-    const member = members.find(m => m.code === bindData.memberCode);
-    if (!member) return;
-    setIsBinding(true);
-    try {
-      await api.patch(`/api/v3/members/${member.id}/bind-card`, { rfid: bindData.rfid });
-      setBindData({ memberCode: '', rfid: '' }); setSubTab('cards'); showBanner('success', 'ผูกบัตรสำเร็จ!'); fetchCards(); fetchMembers();
+  const handleAddCard = async (e) => { e.preventDefault(); try { await api.post('/api/v3/cards', { cardUid: addCardForm.rfid }); showBanner('success', `เพิ่มบัตรสำเร็จ`); setIsAddCardModalOpen(false); fetchCards(); } catch (error) { showError(error); } };
+  
+  const handleBindCard = async (e) => { 
+    e.preventDefault(); 
+    const member = members.find(m => m.code === bindData.memberCode); 
+    if (!member) return; 
+    setIsBinding(true); 
+    try { 
+      await api.patch(`/api/v3/members/${member.id}/bind-card`, { rfid: bindData.rfid }); 
+      setBindData({ memberCode: '', rfid: '' });
+      setSubTab('cards'); 
+      showBanner('success', 'ผูกบัตรสำเร็จ!'); 
+      fetchCards(); 
+      fetchMembers(); 
     } catch (error) { showError(error); } 
-    finally { setIsBinding(false); }
+    finally { setIsBinding(false); } 
+  };
+  
+  const promptToggleCard = (uid, currentStatus) => { 
+    setConfirmDialog({ isOpen: true, title: 'ยืนยัน', message: `ยืนยันการ${currentStatus === 'ACTIVE' ? 'ระงับ' : 'เปิดใช้งาน'}บัตร?`, confirmText: 'ยืนยัน', type: currentStatus === 'ACTIVE' ? 'danger' : 'primary', onConfirm: async () => { try { await api.patch(`/api/v3/cards/${uid}/status`, { status: currentStatus === 'ACTIVE' ? 'FROZEN' : 'ACTIVE' }); showBanner('success', 'เปลี่ยนสถานะสำเร็จ'); fetchCards(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } }); 
   };
 
-  const promptToggleCard = (uid, currentStatus) => {
-    setConfirmDialog({ isOpen: true, title: 'ยืนยัน', message: `ยืนยันการ${currentStatus === 'ACTIVE' ? 'ระงับ' : 'เปิดใช้งาน'}บัตร?`, confirmText: 'ยืนยัน', type: currentStatus === 'ACTIVE' ? 'danger' : 'primary',
-      onConfirm: async () => {
-        try { await api.patch(`/api/v3/cards/${uid}/status`, { status: currentStatus === 'ACTIVE' ? 'FROZEN' : 'ACTIVE' }); showBanner('success', 'เปลี่ยนสถานะสำเร็จ'); fetchCards(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false });
-      }
-    });
+  const handleSubmitGroup = async (e) => { e.preventDefault(); try { const isEdit = !!groupForm.id; const url = isEdit ? `/api/v3/members/groups/${groupForm.id}` : `/api/v3/members/groups`; await api({ method: isEdit ? 'patch' : 'post', url, data: { name: groupForm.name } }); setIsGroupModalOpen(false); showBanner('success', 'บันทึกสำเร็จ'); fetchCardGroups(); } catch (error) { showError(error); } };
+  const promptDeleteGroup = (id, name) => { setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `ลบ "${name}"?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await api.delete(`/api/v3/members/groups/${id}`); showBanner('success', 'ลบสำเร็จ'); fetchCardGroups(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } }); };
+  
+  // 💡 Submit: Departments (ส่ง groupId ไปด้วย)
+  const handleSubmitDept = async (e) => { 
+    e.preventDefault(); 
+    try { 
+      const isEdit = !!deptForm.id; 
+      const url = isEdit ? `/api/v3/members/departments/${deptForm.id}` : `/api/v3/members/departments`; 
+      await api({ method: isEdit ? 'patch' : 'post', url, data: { name: deptForm.name, groupId: deptForm.groupId || null } }); 
+      setIsDeptModalOpen(false); showBanner('success', 'บันทึกสำเร็จ'); fetchDepartments(); 
+    } catch (error) { showError(error); } 
   };
+  const promptDeleteDept = (id, name) => { setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `ลบ "${name}"?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await api.delete(`/api/v3/members/departments/${id}`); showBanner('success', 'ลบสำเร็จ'); fetchDepartments(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } }); };
 
-  const handleSubmitGroup = async (e) => {
+  // 💡 Submit: Member Types (ส่ง groupId ไปด้วย)
+  const handleSubmitType = async (e) => {
     e.preventDefault();
     try {
-      const isEdit = !!groupForm.id;
-      const url = isEdit ? `/api/v3/members/groups/${groupForm.id}` : `/api/v3/members/groups`;
-      await api({ method: isEdit ? 'patch' : 'post', url, data: { name: groupForm.name } });
-      setIsGroupModalOpen(false); showBanner('success', 'บันทึกสำเร็จ'); fetchCardGroups();
+      const isEdit = !!typeForm.id;
+      const url = isEdit ? `/api/v3/members/types/${typeForm.id}` : `/api/v3/members/types`;
+      await api({ method: isEdit ? 'patch' : 'post', url, data: { name: typeForm.name, groupId: typeForm.groupId || null } });
+      setIsTypeModalOpen(false); showBanner('success', 'บันทึกสำเร็จ'); fetchMemberTypes();
     } catch (error) { showError(error); }
   };
-
-  const promptDeleteGroup = (id, name) => {
-    setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `คุณต้องการลบ "${name}" ใช่หรือไม่?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await api.delete(`/api/v3/members/groups/${id}`); showBanner('success', 'ลบสำเร็จ'); fetchCardGroups(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } });
-  };
-
-  const handleSubmitDept = async (e) => {
-    e.preventDefault();
-    try {
-      const isEdit = !!deptForm.id;
-      const url = isEdit ? `/api/v3/members/departments/${deptForm.id}` : `/api/v3/members/departments`;
-      await api({ method: isEdit ? 'patch' : 'post', url, data: { name: deptForm.name } });
-      setIsDeptModalOpen(false); showBanner('success', 'บันทึกสำเร็จ'); fetchDepartments();
-    } catch (error) { showError(error); }
-  };
-
-  const promptDeleteDept = (id, name) => {
-    setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `คุณต้องการลบ "${name}" ใช่หรือไม่?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await api.delete(`/api/v3/members/departments/${id}`); showBanner('success', 'ลบสำเร็จ'); fetchDepartments(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } });
+  const promptDeleteType = (id, name) => {
+    setConfirmDialog({ isOpen: true, title: 'ลบข้อมูล', message: `คุณต้องการลบ "${name}" ใช่หรือไม่?`, confirmText: 'ลบทิ้ง', type: 'danger', onConfirm: async () => { try { await api.delete(`/api/v3/members/types/${id}`); showBanner('success', 'ลบสำเร็จ'); fetchMemberTypes(); } catch (e) { showError(e); } setConfirmDialog({ isOpen: false }); } });
   };
 
   // ==========================================
   // 🟢 Data Processing (Sort & Filter)
   // ==========================================
-  const genericSort = (key, config, setConfig) => {
-    let direction = 'asc';
-    if (config.key === key && config.direction === 'asc') direction = 'desc';
-    setConfig({ key, direction });
-  };
-
-  const sortArray = (arr, config) => {
-    if (!config.key) return arr;
-    return [...arr].sort((a, b) => {
-      let aVal = a[config.key]; let bVal = b[config.key];
-      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-      return aVal < bVal ? (config.direction === 'asc' ? -1 : 1) : aVal > bVal ? (config.direction === 'asc' ? 1 : -1) : 0;
-    });
-  };
+  const genericSort = (key, config, setConfig) => { let direction = 'asc'; if (config.key === key && config.direction === 'asc') direction = 'desc'; setConfig({ key, direction }); };
+  const sortArray = (arr, config) => { if (!config.key) return arr; return [...arr].sort((a, b) => { let aVal = a[config.key]; let bVal = b[config.key]; if (typeof aVal === 'string') aVal = aVal.toLowerCase(); if (typeof bVal === 'string') bVal = bVal.toLowerCase(); return aVal < bVal ? (config.direction === 'asc' ? -1 : 1) : aVal > bVal ? (config.direction === 'asc' ? 1 : -1) : 0; }); };
 
   const processedMembers = useMemo(() => sortArray(members, memberSortConfig), [members, memberSortConfig]);
   const processedCards = useMemo(() => sortArray(cards, cardSortConfig), [cards, cardSortConfig]);
-  
-  const processedDepartments = useMemo(() => {
-    let list = departments;
-    if (deptSearch) list = list.filter(d => d.name?.toLowerCase().includes(deptSearch.toLowerCase()) || d.id?.toString().includes(deptSearch));
-    return sortArray(list, deptSortConfig);
-  }, [departments, deptSearch, deptSortConfig]);
-
-  const processedGroups = useMemo(() => {
-    let list = groups;
-    if (groupSearch) list = list.filter(g => g.name?.toLowerCase().includes(groupSearch.toLowerCase()) || g.id?.toString().includes(groupSearch));
-    return sortArray(list, groupSortConfig);
-  }, [groups, groupSearch, groupSortConfig]);
-
+  const processedDepartments = useMemo(() => { let list = departments; if (deptSearch) list = list.filter(d => d.name?.toLowerCase().includes(deptSearch.toLowerCase())); return sortArray(list, deptSortConfig); }, [departments, deptSearch, deptSortConfig]);
+  const processedGroups = useMemo(() => { let list = groups; if (groupSearch) list = list.filter(g => g.name?.toLowerCase().includes(groupSearch.toLowerCase())); return sortArray(list, groupSortConfig); }, [groups, groupSearch, groupSortConfig]);
+  const processedTypes = useMemo(() => { let list = memberTypes; if (typeSearch) list = list.filter(t => t.name?.toLowerCase().includes(typeSearch.toLowerCase())); return sortArray(list, typeSortConfig); }, [memberTypes, typeSearch, typeSortConfig]);
 
   // ==========================================
   // 🟢 Table Columns Config
   // ==========================================
-  const memberColumns = useMemo(() => [
+  const memberColumns = [
     { header: t('members.colIdentity'), accessor: 'code', key: 'code', render: (m) => (<div className="flex flex-col"><span className="font-bold text-slate-800">{m.code}</span><span className="text-sm text-slate-500">{m.name}</span></div>) },
     { header: t('members.colType'), accessor: 'type', key: 'type', render: (m) => {
+        // 💡 เช็คว่าคนนี้มีกลุ่มสวัสดิการเฉพาะตัวไหม ถ้าไม่มี ให้ขึ้น (Auto)
         const groupName = cardGroups.find(g => g.id === Number(m.groupId))?.name;
         return (
           <div className="flex flex-col gap-1 items-start">
-            <div className="flex gap-1"><span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border ${m.type === 'STUDENT' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-purple-50 text-purple-700 border-purple-200'}`}>{m.type || 'N/A'}</span>{groupName && <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">🎁 {groupName}</span>}</div>
+            <div className="flex gap-1">
+              <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border bg-blue-50 text-blue-700 border-blue-200`}>{m.type || 'N/A'}</span>
+              {groupName && <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">🎁 {groupName}</span>}
+            </div>
             <span className="text-[11px] text-slate-500 font-medium">แผนก: <span className="text-slate-700">{m.department || '-'}</span></span>
           </div>
         );
@@ -236,32 +229,53 @@ export default function MembersView() {
     { header: t('members.colAction'), align: 'right', render: (m) => (
         <div className="flex justify-end gap-1">
           <Button variant="ghost" icon={LinkIcon} title={t('members.bindCardBtn')} className="text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50" onClick={() => { setBindData({ memberCode: m.code, rfid: '' }); setSubTab('cards_bind'); }} />
-          <Button variant="ghost" icon={Edit2} title={t('common.edit') || 'Edit'} onClick={() => { setMemberForm({ id: m.id, code: m.code, name: m.name, type: m.type || 'STUDENT', department: m.department || '', groupId: m.groupId || '', status: m.status || 'ACTIVE' }); setIsModalOpen(true); }} />
+          <Button variant="ghost" icon={Edit2} title={t('common.edit') || 'Edit'} onClick={() => { setMemberForm({ id: m.id, code: m.code, name: m.name, type: m.type, department: m.department || '', groupId: m.groupId || '', status: m.status || 'ACTIVE' }); setIsModalOpen(true); }} />
         </div>
       )
     }
-  ], [t, cardGroups]);
+  ];
 
-  const cardColumns = useMemo(() => [
-    { header: t('members.colUid'), accessor: 'uid', key: 'uid', render: (c) => <span className="font-bold text-slate-700">{c.uid}</span> },
-    { header: t('members.colHolder'), accessor: 'linkedTo', key: 'linkedTo', render: (c) => <span className="text-slate-600">{c.linkedTo || '--'}</span> },
-    { header: t('members.colBalance'), accessor: 'cash', key: 'cash', align: 'right', render: (c) => <span className="font-bold text-emerald-600">฿{c.cash.toLocaleString()}</span> },
-    { header: t('members.colStatus'), accessor: 'status', key: 'status', align: 'center', render: (c) => <Badge status={c.status} /> },
-    { header: t('members.colAction'), align: 'right', render: (c) => (<button onClick={() => promptToggleCard(c.uid, c.status)} className={`text-xs font-bold px-3 py-1.5 rounded-lg border ${c.status === 'ACTIVE' ? 'text-rose-500 border-rose-100 hover:bg-rose-50' : 'text-emerald-500 border-emerald-100 hover:bg-emerald-50'}`}>{c.status === 'ACTIVE' ? t('members.btnFreeze') : t('members.btnActivate')}</button>)}
-  ], [t]);
+  const cardColumns = [ 
+    { header: t('members.colUid'), accessor: 'uid', key: 'uid', render: (c) => <span className="font-bold text-slate-700">{c.uid}</span> }, 
+    { header: t('members.colHolder'), accessor: 'linkedTo', key: 'linkedTo', render: (c) => <span className="text-slate-600">{c.linkedTo || '--'}</span> }, 
+    { header: t('members.colBalance'), accessor: 'cash', key: 'cash', align: 'right', render: (c) => <span className="font-bold text-emerald-600">฿{c.cash.toLocaleString()}</span> }, 
+    { header: t('members.colStatus'), accessor: 'status', key: 'status', align: 'center', render: (c) => <Badge status={c.status} /> }, 
+    { header: t('members.colAction'), align: 'right', render: (c) => (<button onClick={() => promptToggleCard(c.uid, c.status)} className={`text-xs font-bold px-3 py-1.5 rounded-lg border ${c.status === 'ACTIVE' ? 'text-rose-500 border-rose-100 hover:bg-rose-50' : 'text-emerald-500 border-emerald-100 hover:bg-emerald-50'}`}>{c.status === 'ACTIVE' ? t('members.btnFreeze') : t('members.btnActivate')}</button>)} 
+  ];
+  
+  const groupColumns = [ 
+    { header: t('members.colGroupId'), accessor: 'id', key: 'id', render: (g) => <span className="text-slate-500">#{g.id}</span> }, 
+    { header: t('members.colGroupName'), accessor: 'name', key: 'name', render: (g) => <span className="font-bold text-amber-700 flex items-center gap-2"><CreditCard size={16}/> {g.name}</span> }, 
+    { header: t('members.colAction'), align: 'right', render: (g) => (<div className="flex justify-end gap-1"><Button variant="ghost" icon={Edit2} onClick={() => { setGroupForm({ id: g.id, name: g.name }); setIsGroupModalOpen(true); }} /><Button variant="ghost" icon={Trash2} className="text-rose-500 hover:bg-rose-50" onClick={() => promptDeleteGroup(g.id, g.name)} /></div>)} 
+  ];
+  
+  // 💡 เพิ่มการแสดงผล Group ที่ผูกไว้ ในตารางแผนก
+  const deptColumns = [ 
+    { header: t('members.colDeptId'), accessor: 'id', key: 'id', render: (d) => <span className="text-slate-500">#{d.id}</span> }, 
+    { header: t('members.colDeptName'), accessor: 'name', key: 'name', render: (d) => (
+      <div className="flex flex-col">
+        <span className="font-bold text-slate-800 flex items-center gap-2"><Building size={16} className="text-emerald-500"/> {d.name}</span>
+        {d.groupId && <span className="text-[10px] mt-1 w-max font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">🎁 {cardGroups.find(g => g.id === Number(d.groupId))?.name}</span>}
+      </div>
+    )}, 
+    { header: t('members.colAction'), align: 'right', render: (d) => (<div className="flex justify-end gap-1"><Button variant="ghost" icon={Edit2} onClick={() => { setDeptForm({ id: d.id, name: d.name, groupId: d.groupId || '' }); setIsDeptModalOpen(true); }} /><Button variant="ghost" icon={Trash2} className="text-rose-500 hover:bg-rose-50" onClick={() => promptDeleteDept(d.id, d.name)} /></div>)} 
+  ];
+  
+  // 💡 เพิ่มการแสดงผล Group ที่ผูกไว้ ในตารางประเภทสมาชิก
+  const typeColumns = [ 
+    { header: 'รหัสอ้างอิง', accessor: 'id', key: 'id', render: (t) => <span className="text-slate-500">#{t.id}</span> }, 
+    { header: 'ประเภทสมาชิก', accessor: 'name', key: 'name', render: (t) => (
+      <div className="flex flex-col">
+        <span className="font-bold text-blue-700 flex items-center gap-2"><Users size={16}/> {t.name}</span>
+        {t.groupId && <span className="text-[10px] mt-1 w-max font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">🎁 {cardGroups.find(g => g.id === Number(t.groupId))?.name}</span>}
+      </div>
+    )}, 
+    { header: t('common.action'), align: 'right', render: (t) => (<div className="flex justify-end gap-1"><Button variant="ghost" icon={Edit2} onClick={() => { setTypeForm({ id: t.id, name: t.name, groupId: t.groupId || '' }); setIsTypeModalOpen(true); }} /><Button variant="ghost" icon={Trash2} className="text-rose-500 hover:bg-rose-50" onClick={() => promptDeleteType(t.id, t.name)} /></div>)} 
+  ];
 
-  const groupColumns = useMemo(() => [
-    { header: t('members.colGroupId'), accessor: 'id', key: 'id', render: (g) => <span className="text-slate-500">#{g.id}</span> },
-    { header: t('members.colGroupName'), accessor: 'name', key: 'name', render: (g) => <span className="font-bold text-amber-700 flex items-center gap-2"><CreditCard size={16}/> {g.name}</span> },
-    { header: t('members.colAction'), align: 'right', render: (g) => (<div className="flex justify-end gap-1"><Button variant="ghost" icon={Edit2} onClick={() => { setGroupForm({ id: g.id, name: g.name }); setIsGroupModalOpen(true); }} /><Button variant="ghost" icon={Trash2} className="text-rose-500 hover:bg-rose-50" onClick={() => promptDeleteGroup(g.id, g.name)} /></div>)}
-  ], [t]);
-
-  const deptColumns = useMemo(() => [
-    { header: t('members.colDeptId'), accessor: 'id', key: 'id', render: (d) => <span className="text-slate-500">#{d.id}</span> },
-    { header: t('members.colDeptName'), accessor: 'name', key: 'name', render: (d) => <span className="font-bold text-slate-800 flex items-center gap-2"><Building size={16} className="text-emerald-500"/> {d.name}</span> },
-    { header: t('members.colAction'), align: 'right', render: (d) => (<div className="flex justify-end gap-1"><Button variant="ghost" icon={Edit2} onClick={() => { setDeptForm({ id: d.id, name: d.name }); setIsDeptModalOpen(true); }} /><Button variant="ghost" icon={Trash2} className="text-rose-500 hover:bg-rose-50" onClick={() => promptDeleteDept(d.id, d.name)} /></div>)}
-  ], [t]);
-
+  // ==========================================
+  // 🟢 RENDER UI
+  // ==========================================
   return (
     <div className="max-w-7xl mx-auto flex flex-col h-[calc(100vh-100px)] p-4 space-y-4">
       {alertMsg.text && (
@@ -273,25 +287,28 @@ export default function MembersView() {
       )}
 
       {/* 🟢 TABS */}
-      <div className="flex gap-2 bg-slate-200/50 p-1 rounded-xl w-max shrink-0">
+      <div className="flex flex-wrap gap-2 bg-slate-200/50 p-1 rounded-xl w-max shrink-0">
         <button onClick={() => setSubTab('members')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${subTab === 'members' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{t('members.tabMembers')}</button>
         <button onClick={() => setSubTab('cards')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${ (subTab === 'cards' || subTab === 'cards_bind') ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700' }`}>{t('members.tabCards')}</button>
+        <button onClick={() => setSubTab('types')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${subTab === 'types' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>🏷️ ประเภทสมาชิก</button>
         <button onClick={() => setSubTab('departments')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${subTab === 'departments' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{t('members.tabDepartments')}</button>
         <button onClick={() => setSubTab('groups')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${subTab === 'groups' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{t('members.tabGroups')}</button>
       </div>
 
       <PageHeader
-        title={ subTab === 'members' ? t('members.titleMembers') : subTab === 'cards' || subTab === 'cards_bind' ? t('members.titleCards') : subTab === 'departments' ? t('members.titleDepartments') : t('members.titleGroups') }
+        title={ subTab === 'members' ? t('members.titleMembers') : subTab === 'cards' || subTab === 'cards_bind' ? t('members.titleCards') : subTab === 'types' ? 'ประเภทสมาชิก' : subTab === 'departments' ? t('members.titleDepartments') : t('members.titleGroups') }
         actions={
           subTab === 'members' ? (
             <div className="flex gap-2">
               <Button variant="secondary" icon={Upload} onClick={() => showBanner('info', 'ฟังก์ชันนำเข้ายังไม่เปิดใช้งาน')}>{t('members.import')}</Button>
-              <Button variant="primary" icon={Plus} onClick={() => { setMemberForm(initialMemberForm); setIsModalOpen(true); }}>{t('members.addMember')}</Button>
+              <Button variant="primary" icon={Plus} onClick={() => { setMemberForm({ ...initialMemberForm, type: memberTypes[0]?.name || '' }); setIsModalOpen(true); }}>{t('members.addMember')}</Button>
             </div>
           ) : subTab === 'groups' ? (
             <Button variant="primary" icon={Plus} onClick={() => { setGroupForm({ id: '', name: '' }); setIsGroupModalOpen(true); }}>{t('members.addGroup')}</Button>
           ) : subTab === 'departments' ? (
-            <Button variant="primary" icon={Plus} onClick={() => { setDeptForm({ id: '', name: '' }); setIsDeptModalOpen(true); }}>{t('members.addDept')}</Button>
+            <Button variant="primary" icon={Plus} onClick={() => { setDeptForm({ id: '', name: '', groupId: '' }); setIsDeptModalOpen(true); }}>{t('members.addDept')}</Button>
+          ) : subTab === 'types' ? (
+            <Button variant="primary" icon={Plus} onClick={() => { setTypeForm({ id: '', name: '', groupId: '' }); setIsTypeModalOpen(true); }}>สร้างประเภทสมาชิก</Button>
           ) : null
         }
       />
@@ -346,6 +363,31 @@ export default function MembersView() {
           </div>
         )}
 
+        {/* --- VIEW: BIND CARD --- */}
+        {subTab === 'cards_bind' && (
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-xl mx-auto py-10 px-4 w-full">
+              <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl space-y-6">
+                 <h2 className="text-xl font-bold flex items-center gap-2"><LinkIcon className="text-indigo-500" /> {t('members.bindTitle')}</h2>
+                 <form onSubmit={handleBindCard} className="space-y-5">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-500 uppercase">{t('members.bindSelectMember')}</label>
+                      <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm" value={bindData.memberCode} onChange={(e) => setBindData({...bindData, memberCode: e.target.value})} required>
+                        <option value="">{t('members.bindSearchPlaceholder')}</option>
+                        {members.map(m => (<option key={m.id} value={m.code}>[{m.code}] {m.name}</option>))}
+                      </select>
+                    </div>
+                    <Input label={t('members.bindCardInput')} placeholder={t('members.bindCardInputPlaceholder')} value={bindData.rfid} onChange={(e) => setBindData({...bindData, rfid: e.target.value})} required autoFocus />
+                    <div className="flex gap-2 pt-2">
+                      <Button type="button" variant="secondary" className="flex-1" onClick={() => setSubTab('cards')}>{t('common.cancel') || 'Cancel'}</Button>
+                      <Button type="submit" variant="primary" className="flex-[2] bg-indigo-600 hover:bg-indigo-700" disabled={isBinding}>{t('members.btnConfirmBind')}</Button>
+                    </div>
+                 </form>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* --- VIEW: DEPARTMENTS --- */}
         {subTab === 'departments' && (
           <div className="flex flex-col h-full">
@@ -376,27 +418,17 @@ export default function MembersView() {
           </div>
         )}
 
-        {/* --- VIEW: BIND CARD --- */}
-        {subTab === 'cards_bind' && (
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-xl mx-auto py-10 px-4 w-full">
-              <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl space-y-6">
-                 <h2 className="text-xl font-bold flex items-center gap-2"><LinkIcon className="text-indigo-500" /> {t('members.bindTitle')}</h2>
-                 <form onSubmit={handleBindCard} className="space-y-5">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500 uppercase">{t('members.bindSelectMember')}</label>
-                      <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm" value={bindData.memberCode} onChange={(e) => setBindData({...bindData, memberCode: e.target.value})} required>
-                        <option value="">{t('members.bindSearchPlaceholder')}</option>
-                        {members.map(m => (<option key={m.id} value={m.code}>[{m.code}] {m.name}</option>))}
-                      </select>
-                    </div>
-                    <Input label={t('members.bindCardInput')} placeholder={t('members.bindCardInputPlaceholder')} value={bindData.rfid} onChange={(e) => setBindData({...bindData, rfid: e.target.value})} required autoFocus />
-                    <div className="flex gap-2 pt-2">
-                      <Button type="button" variant="secondary" className="flex-1" onClick={() => setSubTab('cards')}>{t('common.cancel') || 'Cancel'}</Button>
-                      <Button type="submit" variant="primary" className="flex-[2] bg-indigo-600 hover:bg-indigo-700" disabled={isBinding}>{t('members.btnConfirmBind')}</Button>
-                    </div>
-                 </form>
+        {/* --- VIEW: MEMBER TYPES --- */}
+        {subTab === 'types' && (
+          <div className="flex flex-col h-full">
+             <div className="p-4 border-b border-slate-100 shrink-0">
+              <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" placeholder="ค้นหาประเภทสมาชิก..." value={typeSearch} onChange={(e) => setTypeSearch(e.target.value)} />
               </div>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+               <Table columns={typeColumns} data={processedTypes} isLoading={isLoading} emptyMessage="ไม่มีข้อมูลประเภทสมาชิก" onSort={(key) => genericSort(key, typeSortConfig, setTypeSortConfig)} sortConfig={typeSortConfig} />
             </div>
           </div>
         )}
@@ -421,7 +453,7 @@ export default function MembersView() {
         </div>
       )}
 
-      {/* 👤 MODAL: เพิ่ม/แก้ไขสมาชิก */}
+      {/* 👤 MODAL: เพิ่ม/แก้ไขสมาชิก (รายบุคคล) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in duration-200">
@@ -439,9 +471,7 @@ export default function MembersView() {
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-500 uppercase">{t('members.formMemberType')}</label>
                   <select className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/20" value={memberForm.type} onChange={(e) => setMemberForm({...memberForm, type: e.target.value})}>
-                    <option value="STUDENT">STUDENT</option>
-                    <option value="EMPLOYEE">EMPLOYEE</option>
-                    <option value="GUEST">GUEST</option>
+                    {memberTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
                   </select>
                 </div>
                 
@@ -454,9 +484,10 @@ export default function MembersView() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-amber-600 uppercase">{t('members.formMemberGroup')}</label>
+                  <label className="text-xs font-bold text-amber-600 uppercase">สวัสดิการเฉพาะบุคคล</label>
                   <select className="w-full border border-amber-200 bg-amber-50/30 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-500/20 text-amber-800" value={memberForm.groupId} onChange={(e) => setMemberForm({...memberForm, groupId: e.target.value})}>
-                    <option value="">{t('members.selectGroupNone')}</option>
+                    {/* 💡 เปลี่ยนคำอธิบาย Default ให้สอดคล้องกับระบบ Inheritance */}
+                    <option value="">-- อิงตามแผนก/ประเภท (ค่าเริ่มต้น) --</option>
                     {cardGroups.map(group => (<option key={group.id} value={group.id}>🎁 {group.name}</option>))}
                   </select>
                 </div>
@@ -490,7 +521,17 @@ export default function MembersView() {
              </div>
              <form onSubmit={handleSubmitDept} className="p-6 space-y-4">
                 <Input label={t('members.formDeptName')} value={deptForm.name} onChange={(e) => setDeptForm({...deptForm, name: e.target.value})} required autoFocus placeholder={t('members.formDeptPlaceholder')} />
-                <div className="flex gap-2 pt-2">
+                
+                {/* 💡 เพิ่ม Dropdown ผูกกลุ่มสวัสดิการระดับแผนก */}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-amber-600 uppercase flex items-center gap-1">🎁 กลุ่มสวัสดิการ (ระดับแผนก)</label>
+                  <select className="w-full border border-amber-200 bg-amber-50/30 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-500/20 text-amber-800" value={deptForm.groupId} onChange={(e) => setDeptForm({...deptForm, groupId: e.target.value})}>
+                    <option value="">-- ไม่รับสวัสดิการ --</option>
+                    {cardGroups.map(group => (<option key={group.id} value={group.id}>{group.name}</option>))}
+                  </select>
+                </div>
+
+                <div className="flex gap-2 pt-2 border-t border-slate-100 mt-4">
                    <Button type="button" variant="secondary" className="flex-1" onClick={() => setIsDeptModalOpen(false)}>{t('common.cancel') || 'Cancel'}</Button>
                    <Button type="submit" variant="primary" className="flex-1">{t('common.save') || 'Save'}</Button>
                 </div>
@@ -499,7 +540,36 @@ export default function MembersView() {
         </div>
       )}
 
-      {/* 👥 MODAL: เพิ่ม/แก้ไขกลุ่ม */}
+      {/* 💡 MODAL: เพิ่ม/แก้ไข ประเภทสมาชิก */}
+      {isTypeModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
+             <div className="p-6 border-b bg-slate-50 flex justify-between items-center">
+                <h3 className="text-lg font-bold flex items-center gap-2"><Users className="text-blue-500" size={20}/> {typeForm.id ? 'แก้ไขประเภทสมาชิก' : 'สร้างประเภทสมาชิก'}</h3>
+                <button type="button" onClick={() => setIsTypeModalOpen(false)} className="text-slate-400"><X size={20}/></button>
+             </div>
+             <form onSubmit={handleSubmitType} className="p-6 space-y-4">
+                <Input label="ชื่อประเภทสมาชิก (เช่น VIP, ALUMNI)" value={typeForm.name} onChange={(e) => setTypeForm({...typeForm, name: e.target.value})} required autoFocus />
+                
+                {/* 💡 เพิ่ม Dropdown ผูกกลุ่มสวัสดิการระดับประเภทสมาชิก */}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-amber-600 uppercase flex items-center gap-1">🎁 กลุ่มสวัสดิการ (ระดับประเภท)</label>
+                  <select className="w-full border border-amber-200 bg-amber-50/30 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-500/20 text-amber-800" value={typeForm.groupId} onChange={(e) => setTypeForm({...typeForm, groupId: e.target.value})}>
+                    <option value="">-- ไม่รับสวัสดิการ --</option>
+                    {cardGroups.map(group => (<option key={group.id} value={group.id}>{group.name}</option>))}
+                  </select>
+                </div>
+
+                <div className="flex gap-2 pt-2 border-t border-slate-100 mt-4">
+                   <Button type="button" variant="secondary" className="flex-1" onClick={() => setIsTypeModalOpen(false)}>{t('common.cancel') || 'Cancel'}</Button>
+                   <Button type="submit" variant="primary" className="flex-1 bg-blue-600 hover:bg-blue-700 border-none">{t('common.save') || 'Save'}</Button>
+                </div>
+             </form>
+           </div>
+        </div>
+      )}
+
+      {/* 👥 MODAL: เพิ่ม/แก้ไขกลุ่ม (สวัสดิการ) */}
       {isGroupModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
